@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"fmt"
+	"net"
 	"github.com/gkarthikreddi/tcp/tools"
 )
 
@@ -16,6 +17,8 @@ type Mac struct {
 type NodeProp struct {
 	IsLbAddr bool
 	LbAddr   Ip
+	Port     int
+	Socket   *net.UDPAddr
 }
 
 type IntfProp struct {
@@ -58,7 +61,7 @@ func NodeSetLbAddr(node *Node, addr string) bool {
 }
 
 func NodeSetIntfIpAddr(node *Node, name, addr string, mask int) bool {
-	intf, err := getNodeByIntfName(node, name)
+	intf, err := getIntfByIntfName(node, name)
 	if err != nil {
 		return false
 	}
@@ -72,7 +75,7 @@ func NodeSetIntfIpAddr(node *Node, name, addr string, mask int) bool {
 }
 
 func NodeUnsetIntfIpAddr(node *Node, name string) bool {
-	intf, err := getNodeByIntfName(node, name)
+	intf, err := getIntfByIntfName(node, name)
 	if err != nil {
 		return false
 	}
@@ -103,24 +106,4 @@ func NodeGetMatchingSubnet(node *Node, ip string) (*Interface, error) {
 		}
 	}
 	return nil, fmt.Errorf("No matching subnet for the given node")
-}
-
-func DumpGraph(graph *Graph) {
-	fmt.Printf("Name: %s\n", graph.Name)
-	for curr := graph.List; curr != nil; curr = curr.Next {
-		DumpNode(curr)
-	}
-}
-
-func DumpInterface(intf *Interface) {
-	fmt.Printf("Interface name: %s\n", intf.Name)
-	fmt.Printf("\tLocalNode: %s, Nbr Node: %s\n", intf.Wire.Intf1.Name, intf.Wire.Intf2.Name)
-	fmt.Printf("\tIp addr: %s, Mac addr: %s\n", intf.Prop.IpAddr.Addr, intf.Prop.MacAddr.Addr)
-}
-
-func DumpNode(node *Node) {
-	fmt.Printf("Node name: %s, Lb addr: %s\n", node.Name, node.Prop.LbAddr.Addr)
-	for i := 0; node.Intf[i] != nil; i++ {
-		DumpInterface(node.Intf[i])
-	}
 }

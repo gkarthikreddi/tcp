@@ -34,6 +34,8 @@ func buildGraph() *Graph {
 	NodeSetIntfIpAddr(node3, "eth03", "70.1.1.1", 24)
 	NodeSetIntfIpAddr(node3, "eth05", "10.1.1.1", 24)
 
+    InitNetworkListening(graph)
+
 	return graph
 }
 

@@ -90,7 +90,9 @@ func parser(tokens []string) error {
 
 	if parent.fn != nil {
 		parent.fn(parent, buff)
-	}
+	} else {
+        return fmt.Errorf("Incomplete Command")
+    }
 
 	return nil
 }

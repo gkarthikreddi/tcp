@@ -54,7 +54,7 @@ func getNodeIntfAvailableSlot(node *Node) (int, error) {
 	return -1, fmt.Errorf("No available slots in the node")
 }
 
-func getNodeByIntfName(node *Node, name string) (*Interface, error) {
+func getIntfByIntfName(node *Node, name string) (*Interface, error) {
 	for i := 0; i < MAX_INTF_PER_NODE; i++ {
 		if node.Intf[i] == nil {
 			break
@@ -83,6 +83,8 @@ func CreateNewGraph(name string) *Graph {
 
 func CreateGraphNode(graph *Graph, name string) *Node {
 	node := Node{Name: name}
+    initUdpSocket(&node)
+
 	if graph.List == nil {
 		graph.List = &node
 		return &node
@@ -123,4 +125,24 @@ func InsertLinkBetweenNodes(node1, node2 *Node, fromIntfNode, toIntfNode string,
 	}
 
 	return nil
+}
+
+func DumpGraph(graph *Graph) {
+	fmt.Printf("Name: %s\n", graph.Name)
+	for curr := graph.List; curr != nil; curr = curr.Next {
+		DumpNode(curr)
+	}
+}
+
+func DumpInterface(intf *Interface) {
+	fmt.Printf("Interface name: %s\n", intf.Name)
+	fmt.Printf("\tLocalNode: %s, Nbr Node: %s\n", intf.Wire.Intf1.Name, intf.Wire.Intf2.Name)
+	fmt.Printf("\tIp addr: %s, Mac addr: %s\n", intf.Prop.IpAddr.Addr, intf.Prop.MacAddr.Addr)
+}
+
+func DumpNode(node *Node) {
+	fmt.Printf("Node name: %s, Lb addr: %s\n", node.Name, node.Prop.LbAddr.Addr)
+	for i := 0; node.Intf[i] != nil; i++ {
+		DumpInterface(node.Intf[i])
+	}
 }
