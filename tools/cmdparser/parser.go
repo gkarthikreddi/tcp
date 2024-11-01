@@ -17,7 +17,7 @@ func FindMatchingParam(param *Param, name string) (*Param, error) {
 		if param.children[i] == nil {
 			break
 		}
-        child := param.children[i].kind
+		child := param.children[i].kind
 		if child.leaf != nil {
 			idx = i
 			continue
@@ -47,7 +47,7 @@ func buildTlvBuffer(param *Param, value string) {
 
 func collectTlv(tlv *Tlv) {
 	if buff == nil {
-        buff = &SerBuff{Data: tlv}
+		buff = &SerBuff{Data: tlv}
 	} else {
 		for curr := buff; curr != nil; curr = curr.Next {
 			if curr.Next == nil {
@@ -91,23 +91,22 @@ func parser(tokens []string) error {
 	if parent.fn != nil {
 		parent.fn(parent, buff)
 	} else {
-        return fmt.Errorf("Incomplete Command")
-    }
+		return fmt.Errorf("Incomplete Command")
+	}
 
 	return nil
 }
 
 func CommandParser() {
 	for true {
-        reader := bufio.NewReader(os.Stdin)
+		reader := bufio.NewReader(os.Stdin)
 		fmt.Print("router> ")
-        str, _ := reader.ReadString('\n')
+		str, _ := reader.ReadString('\n')
 		tokens := strings.Split(strings.TrimSpace(str), " ")
 
 		if err := parser(tokens); err != nil {
 			fmt.Println(err)
 		}
-
-		buff = &SerBuff{}
+		buff = nil
 	}
 }

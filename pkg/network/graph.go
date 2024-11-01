@@ -1,4 +1,4 @@
-package pkg
+package network
 
 import (
 	"fmt"
@@ -7,17 +7,17 @@ import (
 const MAX_INTF_SIZE int = 10
 const MAX_INTF_PER_NODE int = 10
 
-type Link struct {
-	Intf1 Interface
-	Intf2 Interface
-	Cost  uint
+type link struct {
+	intf1 Interface
+	intf2 Interface
+	cost  uint
 }
 
 type Interface struct {
 	Name     string
 	Att_node *Node
-	Wire     *Link
-	Prop     IntfProp
+	conn     *link
+	prop     intfProp
 }
 
 type Node struct {
@@ -25,24 +25,12 @@ type Node struct {
 	Intf [MAX_INTF_SIZE]*Interface
 	Prev *Node
 	Next *Node
-	Prop NodeProp
+	prop nodeProp
 }
 
 type Graph struct {
 	Name string
 	List *Node
-}
-
-// Helper functions
-func getNbrNode(intf *Interface) (*Node, error) {
-	if intf.Att_node == nil || intf.Wire == nil {
-		return nil, fmt.Errorf("Either att_node or wire is not there")
-	}
-
-	if intf.Wire.Intf1 == *intf {
-		return intf.Wire.Intf2.Att_node, nil
-	}
-	return intf.Wire.Intf1.Att_node, nil
 }
 
 func getNodeIntfAvailableSlot(node *Node) (int, error) {
@@ -66,7 +54,18 @@ func getIntfByIntfName(node *Node, name string) (*Interface, error) {
 	return nil, fmt.Errorf("No interface with the given name: %s", name)
 }
 
-func getNodeByNodeName(graph *Graph, name string) (*Node, error) {
+func GetNbrNode(intf *Interface) (*Node, error) {
+	if intf.Att_node == nil || intf.conn == nil {
+		return nil, fmt.Errorf("Either att_node or wire is not there")
+	}
+
+	if intf.conn.intf1 == *intf {
+		return intf.conn.intf2.Att_node, nil
+	}
+	return intf.conn.intf1.Att_node, nil
+}
+
+func GetNodeByNodeName(graph *Graph, name string) (*Node, error) {
 	for node := graph.List; node != nil; node = node.Next {
 		if node.Name == name {
 			return node, nil
@@ -75,7 +74,6 @@ func getNodeByNodeName(graph *Graph, name string) (*Node, error) {
 	return nil, fmt.Errorf("No interface with the given name: %s", name)
 }
 
-// Main functions
 func CreateNewGraph(name string) *Graph {
 	graph := Graph{Name: name, List: nil}
 	return &graph
@@ -83,7 +81,6 @@ func CreateNewGraph(name string) *Graph {
 
 func CreateGraphNode(graph *Graph, name string) *Node {
 	node := Node{Name: name}
-    initUdpSocket(&node)
 
 	if graph.List == nil {
 		graph.List = &node
@@ -103,46 +100,26 @@ func InsertLinkBetweenNodes(node1, node2 *Node, fromIntfNode, toIntfNode string,
 	intf1 := Interface{Name: fromIntfNode}
 	intf2 := Interface{Name: toIntfNode}
 
-	wire := Link{Intf1: intf1, Intf2: intf2}
+	wire := link{intf1: intf1, intf2: intf2}
 
 	// Setting back pointers
-	wire.Intf1.Wire = &wire
-	wire.Intf2.Wire = &wire
+	wire.intf1.conn = &wire
+	wire.intf2.conn = &wire
 
-	wire.Intf1.Att_node = node1
-	wire.Intf2.Att_node = node2
-	wire.Cost = cost
+	wire.intf1.Att_node = node1
+	wire.intf2.Att_node = node2
+	wire.cost = cost
 
 	if i, err := getNodeIntfAvailableSlot(node1); err == nil {
-		node1.Intf[i] = &wire.Intf1
+		node1.Intf[i] = &wire.intf1
 	} else {
 		return fmt.Errorf("Node available slots in node1")
 	}
 	if i, err := getNodeIntfAvailableSlot(node2); err == nil {
-		node2.Intf[i] = &wire.Intf2
+		node2.Intf[i] = &wire.intf2
 	} else {
 		return fmt.Errorf("Node available slots in node2")
 	}
 
 	return nil
-}
-
-func DumpGraph(graph *Graph) {
-	fmt.Printf("Name: %s\n", graph.Name)
-	for curr := graph.List; curr != nil; curr = curr.Next {
-		DumpNode(curr)
-	}
-}
-
-func DumpInterface(intf *Interface) {
-	fmt.Printf("Interface name: %s\n", intf.Name)
-	fmt.Printf("\tLocalNode: %s, Nbr Node: %s\n", intf.Wire.Intf1.Name, intf.Wire.Intf2.Name)
-	fmt.Printf("\tIp addr: %s, Mac addr: %s\n", intf.Prop.IpAddr.Addr, intf.Prop.MacAddr.Addr)
-}
-
-func DumpNode(node *Node) {
-	fmt.Printf("Node name: %s, Lb addr: %s\n", node.Name, node.Prop.LbAddr.Addr)
-	for i := 0; node.Intf[i] != nil; i++ {
-		DumpInterface(node.Intf[i])
-	}
 }

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/gkarthikreddi/tcp/pkg"
+	"github.com/gkarthikreddi/tcp/pkg/cli"
 	"github.com/gkarthikreddi/tcp/tools/cmdparser"
 )
 
 func main() {
-    pkg.InitNwCli()
-    cmdparser.CommandParser()
+	cli.InitNwCli()
+	cmdparser.CommandParser()
 }
