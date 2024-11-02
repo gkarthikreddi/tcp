@@ -77,7 +77,7 @@ func deleteArpTableEntry(arpTable *network.ArpEntry, ip *network.Ip) {
 func addArpTableEntry(arpTable *network.ArpEntry, entry *network.ArpEntry) {
 	oldEntry := arpTableLookup(arpTable, entry.IpAddr)
 	if oldEntry != nil {
-		if *entry == *oldEntry {
+		if entry.MacAddr.Addr == oldEntry.MacAddr.Addr {
 			return
 		} else {
 			deleteArpTableEntry(arpTable, entry.IpAddr)
@@ -98,7 +98,7 @@ func updateArpTableFromArpReply(node *network.Node, arpReply *arpHeader, localIn
 		Name:    localIntf.Name}
 
 	if arpTable := network.GetNodeArpTable(node); arpTable == nil {
-        network.AssignNodeArpTable(node, &entry)
+		network.AssignNodeArpTable(node, &entry)
 	} else {
 		addArpTableEntry(arpTable, &entry)
 	}
@@ -165,6 +165,7 @@ func sendArpReply(etherFrame *ethernetHeader, outIntf *network.Interface) error 
 			SrcMacAddr:      network.GetIntfMac(outIntf).Addr,
 			SrcProtocolAddr: network.GetIntfIp(outIntf).Addr,
 			DstMacAddr:      arpFrame.SrcMacAddr,
+			DstProtocolAddr: arpFrame.SrcProtocolAddr,
 		}
 		etherReplyFrame := ethernetHeader{DstMacAddr: arpFrame.SrcMacAddr,
 			SrcMacAddr: network.GetIntfMac(outIntf).Addr,

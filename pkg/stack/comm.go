@@ -49,7 +49,9 @@ func startListening(node *network.Node, wg *sync.WaitGroup) error {
 	wg.Done()
 	for {
 		if n, _, err := conn.ReadFromUDP(buffer); err == nil {
-			receivePkt(node, buffer[:n])
+			if err = receivePkt(node, buffer[:n]); err != nil {
+				fmt.Println(err)
+			}
 		} else {
 			fmt.Printf("Error while receiving data on node: %s on port: %d", node.Name, network.GetNodePort(node))
 		}
@@ -74,7 +76,7 @@ func sendPkt(etherFame *ethernetHeader, intf *network.Interface) error {
 	} else {
 		return fmt.Errorf("Can't estrablish connection with DestinationNode: %s, Port: %d", dstNode.Name, dstPort)
 	}
-    time.Sleep(time.Millisecond * 5)
+	time.Sleep(time.Millisecond * 5)
 	return nil
 }
 
@@ -88,7 +90,7 @@ func receivePkt(node *network.Node, data []byte) error {
 			}
 		}
 	}
-	return fmt.Errorf("Error while trasferring the received packet to layer2")
+	return fmt.Errorf("Error while trasferring the received packet to layer2 of node: %s", node.Name)
 }
 
 // Assignment

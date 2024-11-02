@@ -17,11 +17,11 @@ func GetSubnetFromMask(mask int) [4]byte {
 
 	var ans [4]byte
 	for i := 0; i < a; i++ {
-		ans[idx] = uint8(math.Pow(2, 8))
+		ans[idx] = uint8(math.Pow(2, 8) - 1)
 		idx++
 	}
 	if idx < 4 && b > 0 {
-		ans[idx] = uint8(math.Pow(2, b))
+		ans[idx] = uint8(math.Pow(2, b) - 1)
 	}
 
 	return ans
