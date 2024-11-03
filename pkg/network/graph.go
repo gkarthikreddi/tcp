@@ -42,7 +42,7 @@ func getNodeIntfAvailableSlot(node *Node) (int, error) {
 	return -1, fmt.Errorf("No available slots in the node")
 }
 
-func getIntfByIntfName(node *Node, name string) (*Interface, error) {
+func GetIntfByIntfName(node *Node, name string) (*Interface, error) {
 	for i := 0; i < MAX_INTF_PER_NODE; i++ {
 		if node.Intf[i] == nil {
 			break
@@ -99,6 +99,8 @@ func CreateGraphNode(graph *Graph, name string) *Node {
 func InsertLinkBetweenNodes(node1, node2 *Node, fromIntfNode, toIntfNode string, cost uint) error {
 	intf1 := Interface{Name: fromIntfNode}
 	intf2 := Interface{Name: toIntfNode}
+    intf1.prop.l2Mode = UNKNOWN
+    intf2.prop.l2Mode = UNKNOWN
 
 	wire := link{intf1: intf1, intf2: intf2}
 

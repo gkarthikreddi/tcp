@@ -93,11 +93,3 @@ func receivePkt(node *network.Node, data []byte) error {
 	return fmt.Errorf("Error while trasferring the received packet to layer2 of node: %s", node.Name)
 }
 
-// Assignment
-func sendPktFlood(node *network.Node, excludeIntf *network.Interface, msg string) {
-	for i := 0; i < network.MAX_INTF_PER_NODE; i++ {
-		if node.Intf[i] != nil && node.Intf[i] != excludeIntf {
-			// sendPkt(msg, node.Intf[i])
-		}
-	}
-}

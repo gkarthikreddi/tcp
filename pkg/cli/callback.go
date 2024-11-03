@@ -8,14 +8,23 @@ import (
 	"github.com/gkarthikreddi/tcp/tools/cmdparser"
 )
 
-
-func showTopology(param *cmdparser.Param, buff *cmdparser.SerBuff) bool {
+func showHandler(param *cmdparser.Param, buff *cmdparser.SerBuff) bool {
 	code := cmdparser.ExtractCmdCode(buff)
 	buff = buff.Next
 
+	var node *network.Node
+	if buff.Data.Id == "node-name" {
+		node, _ = network.GetNodeByNodeName(graph, buff.Data.Value)
+	}
 	switch code {
 	case SHOW_TOPO:
 		dumpGraph(graph)
+		return true
+	case ARP_TABLE:
+		dumpArpTable(node)
+		return true
+	case MAC_TABLE:
+		dumpMacTable(node)
 		return true
 	}
 	return false
@@ -42,20 +51,6 @@ func arpHandler(param *cmdparser.Param, buff *cmdparser.SerBuff) bool {
 			fmt.Println(err)
 		}
 		return true
-	}
-	return false
-}
-
-func dumpArpTable(param *cmdparser.Param, buff *cmdparser.SerBuff) bool {
-	code := cmdparser.ExtractCmdCode(buff)
-	buff = buff.Next
-
-	switch code {
-	case ARP_TABLE:
-		if buff.Data.Id == "node-name" {
-			node, _ := network.GetNodeByNodeName(graph, buff.Data.Value)
-			dumpArp(node)
-		}
 	}
 	return false
 }

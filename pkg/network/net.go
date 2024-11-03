@@ -14,6 +14,14 @@ type Mac struct {
 	Addr [6]byte
 }
 
+type L2Mode string
+
+const (
+	ACCESS  L2Mode = "access"
+	TRUNK   L2Mode = "trunk"
+	UNKNOWN L2Mode = "unknown"
+)
+
 type nodeProp struct {
 	// L3 properties
 	isLbAddr bool
@@ -21,6 +29,7 @@ type nodeProp struct {
 
 	// L2 properties
 	arpTable *ArpEntry
+	macTable *MacEntry
 
 	port   int
 	socket *net.UDPAddr
@@ -31,6 +40,9 @@ type intfProp struct {
 	isIpAddr bool
 	ipAddr   Ip
 	mask     int
+
+	// L2 properties
+	l2Mode L2Mode
 }
 
 type ArpEntry struct {
@@ -39,6 +51,13 @@ type ArpEntry struct {
 	Name    string
 	Next    *ArpEntry
 	Prev    *ArpEntry
+}
+
+type MacEntry struct {
+	MacAddr *Mac
+	Name    string
+	Next    *MacEntry
+	Prev    *MacEntry
 }
 
 // Encapsulation
@@ -52,6 +71,10 @@ func GetIntfIp(intf *Interface) *Ip {
 
 func GetIntfMac(intf *Interface) *Mac {
 	return &intf.prop.macAddr
+}
+
+func GetIntfL2Mode(intf *Interface) L2Mode {
+	return intf.prop.l2Mode
 }
 
 func GetNodeIp(node *Node) *Ip {
@@ -70,6 +93,10 @@ func GetNodeArpTable(node *Node) *ArpEntry {
 	return node.prop.arpTable
 }
 
+func GetNodeMacTable(node *Node) *MacEntry {
+	return node.prop.macTable
+}
+
 func AssignNodePort(node *Node, num int) {
 	node.prop.port = num
 }
@@ -81,6 +108,11 @@ func AssignNodeSocket(node *Node, socket *net.UDPAddr) {
 func AssignNodeArpTable(node *Node, arpEntry *ArpEntry) {
 	node.prop.arpTable = arpEntry
 }
+
+func AssignNodeMacTable(node *Node, macEntry *MacEntry) {
+	node.prop.macTable = macEntry
+}
+
 // --------------------
 
 func NodeSetLbAddr(node *Node, addr string) bool {
@@ -95,7 +127,7 @@ func NodeSetLbAddr(node *Node, addr string) bool {
 }
 
 func NodeSetIntfIpAddr(node *Node, name, addr string, mask int) bool {
-	intf, err := getIntfByIntfName(node, name)
+	intf, err := GetIntfByIntfName(node, name)
 	if err != nil {
 		return false
 	}
@@ -111,7 +143,7 @@ func NodeSetIntfIpAddr(node *Node, name, addr string, mask int) bool {
 }
 
 func NodeUnsetIntfIpAddr(node *Node, name string) bool {
-	intf, err := getIntfByIntfName(node, name)
+	intf, err := GetIntfByIntfName(node, name)
 	if err != nil {
 		return false
 	}
@@ -142,6 +174,16 @@ func NodeGetMatchingSubnet(node *Node, ip *Ip) (*Interface, error) {
 		}
 	}
 	return nil, fmt.Errorf("No matching subnet for the given node")
+}
+
+func NodeSetIntfL2Mode(node *Node, name string, mode L2Mode) bool {
+	intf, err := GetIntfByIntfName(node, name)
+	if err != nil {
+		return false
+	}
+
+    intf.prop.l2Mode = mode
+	return true
 }
 
 func intfAssignMacAddr(intf *Interface) error {

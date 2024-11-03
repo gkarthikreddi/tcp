@@ -2,11 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"os"
-    "github.com/jedib0t/go-pretty/v6/table"
 	"github.com/gkarthikreddi/tcp/pkg/network"
 	"github.com/gkarthikreddi/tcp/pkg/stack"
 	"github.com/gkarthikreddi/tcp/tools"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"os"
 )
 
 const (
@@ -19,6 +19,7 @@ const (
 	Cyan   = "\033[36m"
 )
 
+func buildGraph() *network.Graph {
 /*
 	                 +----------+
 	             0/4 |          |0/0
@@ -37,7 +38,6 @@ const (
 |       |30.1.1.2/24                        30.1.1.1/24|          |
 +-------+                                              +----------+
 */
-func buildGraph() *network.Graph {
 	graph := network.CreateNewGraph("Topology")
 	node1 := network.CreateGraphNode(graph, "r0")
 	node2 := network.CreateGraphNode(graph, "r1")
@@ -61,7 +61,71 @@ func buildGraph() *network.Graph {
 	return graph
 }
 
-var graph = buildGraph()
+func buildL2SwitchGraph() *network.Graph{
+    /*
+                                       +-----------+
+                                       |  H4       |
+                                       | 122.1.1.4 |
+                                       +----+------+
+                                            |eth0/7 - 10.1.1.3/24       
+                                            |       
+                                            |eth0/1
+                                       +----+----+                        +---------+
+       +---------+                     |         |                        |         |
+       |         |10.1.1.2/24          |   L2Sw  |eth0/2       10.1.1.1/24|  H3     |
+       |  H1     +---------------------+         +------------------------+122.1.1.3|
+       |122.1.1.1|eth0/5         eth0/4|         |                 eth0/6 |         |
+       + --------+                     |         |                        |         |
+                                       +----+----+                        +---------+
+                                            |eth0/3     
+                                            |
+                                            |
+                                            |
+                                            |10.1.1.4/24
+                                            |eth0/8
+                                      +----++------+
+                                      |            |
+                                      |   H2       |
+                                      |122.1.1.2   |
+                                      |            |
+                                      +------------+
+
+
+    */
+	topo := network.CreateNewGraph("Simpel L2 switch demo graph")
+	h1 := network.CreateGraphNode(topo, "H1")
+	h2 := network.CreateGraphNode(topo, "H2")
+	h3 := network.CreateGraphNode(topo, "H3")
+	h4 := network.CreateGraphNode(topo, "H4")
+	l2sw := network.CreateGraphNode(topo, "L2SW")
+
+	network.InsertLinkBetweenNodes(h1, l2sw, "eth0/5", "eth0/4", 1)
+	network.InsertLinkBetweenNodes(h2, l2sw, "eth0/8", "eth0/3", 1)
+	network.InsertLinkBetweenNodes(h3, l2sw, "eth0/6", "eth0/2", 1)
+	network.InsertLinkBetweenNodes(h4, l2sw, "eth0/7", "eth0/1", 1)
+
+	network.NodeSetLbAddr(h1, "122.1.1.1")
+	network.NodeSetIntfIpAddr(h1, "eth0/5", "10.1.1.2", 24)
+
+	network.NodeSetLbAddr(h2, "122.1.1.2")
+	network.NodeSetIntfIpAddr(h2, "eth0/8", "10.1.1.4", 24)
+
+	network.NodeSetLbAddr(h3, "122.1.1.3")
+	network.NodeSetIntfIpAddr(h3, "eth0/6", "10.1.1.1", 24)
+
+	network.NodeSetLbAddr(h4, "122.1.1.4")
+	network.NodeSetIntfIpAddr(h4, "eth0/5", "10.1.1.3", 24)
+
+	network.NodeSetIntfL2Mode(l2sw, "eth0/1", network.ACCESS)
+	network.NodeSetIntfL2Mode(l2sw, "eth0/2", network.ACCESS)
+	network.NodeSetIntfL2Mode(l2sw, "eth0/3", network.ACCESS)
+	network.NodeSetIntfL2Mode(l2sw, "eth0/4", network.ACCESS)
+
+    stack.InitNetworkListening(topo)
+    return topo
+}
+
+var graph = buildL2SwitchGraph()
 
 func dumpGraph(graph *network.Graph) {
 	fmt.Println("Name: " + Cyan + graph.Name + Reset)
@@ -84,15 +148,27 @@ func dumpInterface(intf *network.Interface) {
 	fmt.Println("\t\tIp addr: " + Yellow + tools.ConvertAddrToStr(network.GetIntfIp(intf).Addr[:]) + Reset + " Mac addr: " + Yellow + tools.ConvertAddrToStr(network.GetIntfMac(intf).Addr[:]) + Reset)
 }
 
-func dumpArp(node *network.Node) {
-    t := table.NewWriter()
-    t.SetOutputMirror(os.Stdout)
-    t.AppendHeader(table.Row{"IP", "MAC", "Interface"})
+func dumpArpTable(node *network.Node) {
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"IP", "MAC", "Interface"})
 	for curr := network.GetNodeArpTable(node); curr != nil; curr = curr.Next {
-        t.AppendRow(table.Row{
-        tools.ConvertAddrToStr(curr.IpAddr.Addr[:]),
-        tools.ConvertAddrToStr(curr.MacAddr.Addr[:]),
-        curr.Name })
+		t.AppendRow(table.Row{
+			tools.ConvertAddrToStr(curr.IpAddr.Addr[:]),
+			tools.ConvertAddrToStr(curr.MacAddr.Addr[:]),
+			curr.Name})
 	}
-    t.Render()
+	t.Render()
+}
+
+func dumpMacTable(node *network.Node) {
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"MAC", "Interface"})
+	for curr := network.GetNodeMacTable(node); curr != nil; curr = curr.Next {
+		t.AppendRow(table.Row{
+			tools.ConvertAddrToStr(curr.MacAddr.Addr[:]),
+			curr.Name})
+	}
+	t.Render()
 }

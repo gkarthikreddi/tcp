@@ -6,6 +6,7 @@ const (
 	SHOW_TOPO   = 1
 	ARP_HANDLER = 2
 	ARP_TABLE   = 3
+	MAC_TABLE   = 4
 )
 
 func InitNwCli() {
@@ -19,7 +20,7 @@ func InitNwCli() {
 		cmdparser.InitParam(&topo, // param
 			cmdparser.CMD,                  // type of param
 			"topology",                     // name of param, nil for leaf param
-			showTopology,                   // callback handler
+			showHandler,                   // callback handler
 			nil,                            // validationn handler
 			cmdparser.INVALID,              // leaftype
 			"",                             // id of leaf, nil for cmd param
@@ -52,11 +53,25 @@ func InitNwCli() {
 			cmdparser.LibcliRegisterParam(&node, &nodeName)
 
 			{
+				var mac cmdparser.Param
+				cmdparser.InitParam(&mac,
+					cmdparser.CMD,
+					"mac",
+					showHandler,
+					nil,
+					cmdparser.INVALID,
+					"",
+					"Mac Table lookup of a node")
+				cmdparser.LibcliRegisterParam(&nodeName, &mac)
+				cmdparser.SetParamCmdCode(&mac, MAC_TABLE)
+			}
+
+			{
 				var arp cmdparser.Param
 				cmdparser.InitParam(&arp,
 					cmdparser.CMD,
 					"arp",
-					dumpArpTable,
+					showHandler,
 					nil,
 					cmdparser.INVALID,
 					"",
