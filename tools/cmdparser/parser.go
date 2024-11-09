@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var buff *SerBuff
@@ -108,5 +109,6 @@ func CommandParser() {
 			fmt.Println(err)
 		}
 		buff = nil
+		time.Sleep(time.Millisecond * 50)
 	}
 }

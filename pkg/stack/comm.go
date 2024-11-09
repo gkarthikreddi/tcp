@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/gkarthikreddi/tcp/pkg/network"
 	"github.com/gkarthikreddi/tcp/tools"
 )
 
 var port = 40000
+
+type packet struct {
+	Intf       string
+	EtherFrame ethernetHeader
+}
 
 func initUdpSocket(node *network.Node) error {
 	port++
@@ -58,13 +62,15 @@ func startListening(node *network.Node, wg *sync.WaitGroup) error {
 	}
 }
 
-func sendPkt(etherFame *ethernetHeader, intf *network.Interface) error {
+func sendPkt(etherFrame *ethernetHeader, intf *network.Interface) error {
 	dstNode, err := network.GetNbrNode(intf)
 	if err != nil {
 		return err
 	}
 
-	msg, err := tools.StructToByte(etherFame)
+	dstIntf := network.GetNbrIntf(intf)
+	pkt := packet{Intf: dstIntf, EtherFrame: *etherFrame}
+	msg, err := tools.StructToByte(pkt)
 	if err != nil {
 		return err
 	}
@@ -76,20 +82,15 @@ func sendPkt(etherFame *ethernetHeader, intf *network.Interface) error {
 	} else {
 		return fmt.Errorf("Can't estrablish connection with DestinationNode: %s, Port: %d", dstNode.Name, dstPort)
 	}
-	time.Sleep(time.Millisecond * 5)
 	return nil
 }
 
 func receivePkt(node *network.Node, data []byte) error {
-	if etherFrame, err := tools.ByteToStruct(data, ethernetHeader{}); err == nil {
-		if arpFrame, e := tools.ByteToStruct(etherFrame.Payload[:], arpHeader{}); e == nil {
-			ip := &network.Ip{Addr: arpFrame.DstProtocolAddr}
-			if intf, err := network.NodeGetMatchingSubnet(node, ip); err == nil {
-				layer2FrameRecieve(node, intf, etherFrame)
-				return nil
-			}
+	if pkt, err := tools.ByteToStruct(data, packet{}); err == nil {
+		if intf, err := network.GetIntfByIntfName(node, pkt.Intf); err == nil {
+			layer2FrameRecieve(node, intf, &pkt.EtherFrame)
+			return nil
 		}
 	}
 	return fmt.Errorf("Error while trasferring the received packet to layer2 of node: %s", node.Name)
 }
-

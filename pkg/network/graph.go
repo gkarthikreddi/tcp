@@ -54,6 +54,13 @@ func GetIntfByIntfName(node *Node, name string) (*Interface, error) {
 	return nil, fmt.Errorf("No interface with the given name: %s", name)
 }
 
+func GetNbrIntf(intf *Interface) string {
+	if intf.conn.intf1.Name == intf.Name {
+		return intf.conn.intf2.Name
+	}
+	return intf.conn.intf1.Name
+}
+
 func GetNbrNode(intf *Interface) (*Node, error) {
 	if intf.Att_node == nil || intf.conn == nil {
 		return nil, fmt.Errorf("Either att_node or wire is not there")
@@ -99,8 +106,8 @@ func CreateGraphNode(graph *Graph, name string) *Node {
 func InsertLinkBetweenNodes(node1, node2 *Node, fromIntfNode, toIntfNode string, cost uint) error {
 	intf1 := Interface{Name: fromIntfNode}
 	intf2 := Interface{Name: toIntfNode}
-    intf1.prop.l2Mode = UNKNOWN
-    intf2.prop.l2Mode = UNKNOWN
+	intf1.prop.l2Mode = UNKNOWN
+	intf2.prop.l2Mode = UNKNOWN
 
 	wire := link{intf1: intf1, intf2: intf2}
 

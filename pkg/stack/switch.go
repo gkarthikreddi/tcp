@@ -2,6 +2,11 @@ package stack
 
 import "github.com/gkarthikreddi/tcp/pkg/network"
 
+type vlan8021qHeader struct {
+	TPID uint16
+	Id   uint16 // This should be 12 bits has there are PRI (3bits) and CFI (1bits)
+}
+
 func addMacTableEntry(node *network.Node, macEntry *network.MacEntry) {
 	macTable := network.GetNodeMacTable(node)
 	if macTable == nil {
@@ -71,7 +76,7 @@ func l2switchForwardFrame(node *network.Node, localIntf *network.Interface, ethe
 	}
 	if macEntry := macTableLookup(network.GetNodeMacTable(node), etherFrame.DstMacAddr); macEntry != nil {
 		if intf, _ := network.GetIntfByIntfName(node, macEntry.Name); intf != nil {
-			sendPkt(etherFrame, intf)
+			l2switchSendPkt(etherFrame, intf)
 			return
 		}
 	}
@@ -80,9 +85,41 @@ func l2switchForwardFrame(node *network.Node, localIntf *network.Interface, ethe
 
 func l2sendPktFlood(node *network.Node, excludeIntf *network.Interface, etherFrame *ethernetHeader) {
 	for i := 0; i < network.MAX_INTF_PER_NODE; i++ {
-        intf := node.Intf[i]
+		intf := node.Intf[i]
 		if intf != nil && intf != excludeIntf {
-            sendPkt(etherFrame, intf)
+			l2switchSendPkt(etherFrame, intf)
+		}
+	}
+}
+
+func l2switchSendPkt(etherFrame *ethernetHeader, outintf *network.Interface) {
+	if network.IsIntfIp(outintf) {
+		return
+	}
+
+	mode := network.GetIntfL2Mode(outintf)
+	if mode == network.ACCESS {
+		vlan := network.GetIntfVlanMembership(outintf)[0]
+		if etherFrame.Tagged == nil {
+			if vlan == 0 {
+				sendPkt(etherFrame, outintf)
+			}
+		} else {
+			if etherFrame.Tagged.Id == vlan {
+				// untagging the frame before forwading it
+				untaggedFrame := *etherFrame
+				untaggedFrame.Tagged = nil
+				sendPkt(&untaggedFrame, outintf)
+			}
+		}
+	} else if mode == network.TRUNK && etherFrame.Tagged != nil {
+		for _, val := range network.GetIntfVlanMembership(outintf) {
+			if val == 0 {
+				break
+			}
+			if val == etherFrame.Tagged.Id {
+				sendPkt(etherFrame, outintf)
+			}
 		}
 	}
 }

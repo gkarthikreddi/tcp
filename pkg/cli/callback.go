@@ -13,7 +13,7 @@ func showHandler(param *cmdparser.Param, buff *cmdparser.SerBuff) bool {
 	buff = buff.Next
 
 	var node *network.Node
-	if buff.Data.Id == "node-name" {
+	if buff != nil && buff.Data.Id == "node-name" {
 		node, _ = network.GetNodeByNodeName(graph, buff.Data.Value)
 	}
 	switch code {

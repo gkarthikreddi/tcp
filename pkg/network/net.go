@@ -6,6 +6,10 @@ import (
 	"net"
 )
 
+const (
+	MAX_VLAN_MEMBERSHIP = 10
+)
+
 type Ip struct {
 	Addr [4]byte
 }
@@ -43,6 +47,7 @@ type intfProp struct {
 
 	// L2 properties
 	l2Mode L2Mode
+	vlan   [MAX_VLAN_MEMBERSHIP]uint16
 }
 
 type ArpEntry struct {
@@ -75,6 +80,10 @@ func GetIntfMac(intf *Interface) *Mac {
 
 func GetIntfL2Mode(intf *Interface) L2Mode {
 	return intf.prop.l2Mode
+}
+
+func GetIntfVlanMembership(intf *Interface) []uint16 {
+	return intf.prop.vlan[:]
 }
 
 func GetNodeIp(node *Node) *Ip {
@@ -182,8 +191,43 @@ func NodeSetIntfL2Mode(node *Node, name string, mode L2Mode) bool {
 		return false
 	}
 
-    intf.prop.l2Mode = mode
+	/*If interface is working in L3 mode, i.e. IP Addr is configured.
+	  then disable IP addr and set the interface in L2 MODE */
+	if IsIntfIp(intf) {
+		intf.prop.isIpAddr = false
+		intf.prop.l2Mode = mode
+	}
+
+	intf.prop.l2Mode = mode
 	return true
+}
+
+func NodeSetIntfVlanMembership(node *Node, name string, vlan uint16) error {
+	intf, err := GetIntfByIntfName(node, name)
+	if err != nil {
+		return err
+	}
+
+	if IsIntfIp(intf) {
+		return fmt.Errorf("Interface: %s configured with L3 Mode, can't assign vlan membership", node.Name+":"+intf.Name)
+	}
+
+	if intf.prop.l2Mode == ACCESS {
+		intf.prop.vlan[0] = vlan
+		return nil
+	}
+
+	if intf.prop.l2Mode == TRUNK {
+		for i := 0; i < MAX_VLAN_MEMBERSHIP; i++ {
+			if intf.prop.vlan[i] == 0 {
+				intf.prop.vlan[i] = vlan
+				return nil
+			}
+		}
+		return fmt.Errorf("Max of vlans are set on Interface: %s", node.Name+":"+intf.Name)
+	}
+
+	return fmt.Errorf("L2 Mode is not set on interface: %s", node.Name+":"+intf.Name)
 }
 
 func intfAssignMacAddr(intf *Interface) error {
