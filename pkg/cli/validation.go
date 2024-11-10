@@ -30,3 +30,13 @@ func validIPAddr(str string) bool {
 	}
 	return true
 }
+
+func validMask(str string) bool {
+    if mask, err := strconv.Atoi(str); err == nil {
+        if mask >= 0 && mask <= 32 {
+            return true
+        }
+    }
+
+    return false
+}

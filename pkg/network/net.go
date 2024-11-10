@@ -12,6 +12,7 @@ const (
 
 type Ip struct {
 	Addr [4]byte
+	Mask     uint8
 }
 
 type Mac struct {
@@ -30,6 +31,7 @@ type nodeProp struct {
 	// L3 properties
 	isLbAddr bool
 	lbAddr   Ip
+    routingTable *RoutEntry
 
 	// L2 properties
 	arpTable *ArpEntry
@@ -43,7 +45,6 @@ type intfProp struct {
 	macAddr  Mac
 	isIpAddr bool
 	ipAddr   Ip
-	mask     int
 
 	// L2 properties
 	l2Mode L2Mode
@@ -65,9 +66,22 @@ type MacEntry struct {
 	Prev    *MacEntry
 }
 
+type RoutEntry struct {
+    DstIpAddr *Ip
+    IsDirect bool
+    GatewayIp *Ip
+    OutIntf string
+    Next *RoutEntry
+    Prev *RoutEntry
+}
+
 // Encapsulation
 func IsIntfIp(intf *Interface) bool {
 	return intf.prop.isIpAddr
+}
+
+func IsNodeIp(node *Node) bool {
+	return node.prop.isLbAddr
 }
 
 func GetIntfIp(intf *Interface) *Ip {
@@ -106,6 +120,10 @@ func GetNodeMacTable(node *Node) *MacEntry {
 	return node.prop.macTable
 }
 
+func GetNodeRoutingTable(node *Node) *RoutEntry {
+	return node.prop.routingTable
+}
+
 func AssignNodePort(node *Node, num int) {
 	node.prop.port = num
 }
@@ -122,6 +140,9 @@ func AssignNodeMacTable(node *Node, macEntry *MacEntry) {
 	node.prop.macTable = macEntry
 }
 
+func AssignNodeRoutingTable(node *Node, routEntry *RoutEntry) {
+	node.prop.routingTable = routEntry
+}
 // --------------------
 
 func NodeSetLbAddr(node *Node, addr string) bool {
@@ -131,11 +152,12 @@ func NodeSetLbAddr(node *Node, addr string) bool {
 
 	node.prop.isLbAddr = true
 	GetNodeIp(node).Addr = tools.ConvertStrToIp(addr)
+	GetNodeIp(node).Mask = 32
 
 	return true
 }
 
-func NodeSetIntfIpAddr(node *Node, name, addr string, mask int) bool {
+func NodeSetIntfIpAddr(node *Node, name, addr string, mask uint8) bool {
 	intf, err := GetIntfByIntfName(node, name)
 	if err != nil {
 		return false
@@ -146,7 +168,7 @@ func NodeSetIntfIpAddr(node *Node, name, addr string, mask int) bool {
 	}
 	intf.prop.isIpAddr = true
 	GetIntfIp(intf).Addr = tools.ConvertStrToIp(addr)
-	intf.prop.mask = mask
+	GetIntfIp(intf).Mask = mask
 
 	return true
 }
@@ -173,10 +195,10 @@ func NodeGetMatchingSubnet(node *Node, ip *Ip) (*Interface, error) {
 		}
 
 		addr := GetIntfIp(intf)
-		mask := intf.prop.mask
+        ip.Mask = addr.Mask
 
-		n1 := applyMask(addr, mask)
-		n2 := applyMask(ip, mask)
+		n1 := ApplyMask(addr)
+		n2 := ApplyMask(ip)
 
 		if n1 == n2 {
 			return intf, nil
@@ -241,8 +263,8 @@ func intfAssignMacAddr(intf *Interface) error {
 	}
 }
 
-func applyMask(ip *Ip, mask int) [4]byte {
-	subnet := tools.GetSubnetFromMask(mask)
+func ApplyMask(ip *Ip) [4]byte {
+	subnet := tools.GetSubnetFromMask(ip.Mask)
 	var ans [4]byte
 	for i := 0; i < 4; i++ {
 		ans[i] = subnet[i] & ip.Addr[i]

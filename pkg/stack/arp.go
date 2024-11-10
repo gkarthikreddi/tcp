@@ -27,7 +27,7 @@ type arpHeader struct {
 
 func arpTableLookup(arpTable *network.ArpEntry, ip *network.Ip) *network.ArpEntry {
 	for entry := arpTable; entry != nil; entry = entry.Next {
-		if *entry.IpAddr == *ip {
+		if entry.IpAddr.Addr == ip.Addr {
 			return entry
 		}
 	}
@@ -115,9 +115,9 @@ func SendArpBroadcast(node *network.Node, outIntf *network.Interface, ip *networ
 		DstProtocolAddr: ip.Addr}
 	fillBroadcastAddr(&etherFrame.DstMacAddr)
 
-    if err = assignPayload(&etherFrame, &arpFrame); err != nil {
-        return err
-    }
+	if err = assignPayload(&etherFrame, &arpFrame); err != nil {
+		return err
+	}
 
 	if err = sendPkt(&etherFrame, outIntf); err != nil {
 		return err

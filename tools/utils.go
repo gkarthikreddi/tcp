@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-func GetSubnetFromMask(mask int) [4]byte {
+func GetSubnetFromMask(mask uint8) [4]byte {
 	a := mask / 8
 	b := float64(mask % 8) // math.Pow only takes float64 has arguments
 	idx := 0
 
 	var ans [4]byte
-	for i := 0; i < a; i++ {
+	for i := 0; i < int(a); i++ {
 		ans[idx] = uint8(math.Pow(2, 8) - 1)
 		idx++
 	}

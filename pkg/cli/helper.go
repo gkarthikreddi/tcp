@@ -42,16 +42,17 @@ func buildGraph() *network.Graph {
 	network.NodeSetIntfIpAddr(node3, "eth05", "40.1.1.2", 24)
 
 	stack.InitNetworkListening(graph)
+	stack.InitRoutingTable(graph)
 	return graph
 }
 
 func buildL2SwitchGraph() *network.Graph {
-	topo := network.CreateNewGraph("Simpel L2 switch demo graph")
-	h1 := network.CreateGraphNode(topo, "H1")
-	h2 := network.CreateGraphNode(topo, "H2")
-	h3 := network.CreateGraphNode(topo, "H3")
-	h4 := network.CreateGraphNode(topo, "H4")
-	l2sw := network.CreateGraphNode(topo, "L2SW")
+	graph := network.CreateNewGraph("Simpel L2 switch demo graph")
+	h1 := network.CreateGraphNode(graph, "H1")
+	h2 := network.CreateGraphNode(graph, "H2")
+	h3 := network.CreateGraphNode(graph, "H3")
+	h4 := network.CreateGraphNode(graph, "H4")
+	l2sw := network.CreateGraphNode(graph, "L2SW")
 
 	network.InsertLinkBetweenNodes(h1, l2sw, "eth0/5", "eth0/4", 1)
 	network.InsertLinkBetweenNodes(h2, l2sw, "eth0/8", "eth0/3", 1)
@@ -75,8 +76,9 @@ func buildL2SwitchGraph() *network.Graph {
 	network.NodeSetIntfL2Mode(l2sw, "eth0/3", network.ACCESS)
 	network.NodeSetIntfL2Mode(l2sw, "eth0/4", network.ACCESS)
 
-	stack.InitNetworkListening(topo)
-	return topo
+	stack.InitNetworkListening(graph)
+	stack.InitRoutingTable(graph)
+	return graph
 }
 
 func buildDualSwitchGraph() *network.Graph {
@@ -133,11 +135,35 @@ func buildDualSwitchGraph() *network.Graph {
 	network.NodeSetIntfVlanMembership(L2SW2, "eth0/12", 11)
 
 	stack.InitNetworkListening(graph)
+	stack.InitRoutingTable(graph)
+
+	return graph
+}
+func buildLinear3NodeTopo() *network.Graph {
+	graph := network.CreateNewGraph("3 node linear topo")
+	R1 := network.CreateGraphNode(graph, "R1")
+	R2 := network.CreateGraphNode(graph, "R2")
+	R3 := network.CreateGraphNode(graph, "R3")
+
+	network.InsertLinkBetweenNodes(R1, R2, "eth0/1", "eth0/2", 1)
+	network.InsertLinkBetweenNodes(R2, R3, "eth0/3", "eth0/4", 1)
+
+	network.NodeSetLbAddr(R1, "122.1.1.1")
+	network.NodeSetLbAddr(R2, "122.1.1.2")
+	network.NodeSetLbAddr(R3, "122.1.1.3")
+
+	network.NodeSetIntfIpAddr(R1, "eth0/1", "10.1.1.1", 24)
+	network.NodeSetIntfIpAddr(R2, "eth0/2", "10.1.1.2", 24)
+	network.NodeSetIntfIpAddr(R2, "eth0/3", "11.1.1.2", 24)
+	network.NodeSetIntfIpAddr(R3, "eth0/4", "11.1.1.1", 24)
+
+	stack.InitNetworkListening(graph)
+	stack.InitRoutingTable(graph)
 
 	return graph
 }
 
-var graph = buildDualSwitchGraph()
+var graph = buildLinear3NodeTopo()
 
 func dumpGraph(graph *network.Graph) {
 	fmt.Println("Name: " + Cyan + graph.Name + Reset)
@@ -219,6 +245,14 @@ func dumpGraph(graph *network.Graph) {
 	                                  |122.1.1.2   |
 	                                  |            |
 	                                  +------------+ `)
+	} else if graph.Name == "3 node linear topo" {
+		fmt.Println(`
+                                        +---------+                                  +----------+
++--------+                              |         |                                  |R3        |
+|R1      |eth0/1                  eth0/2|R2       |eth0/3                      eth0/4|122.1.1.3 |
+|122.1.1.1+-----------------------------+122.1.1.2|+----------------------------------+         |
+|        |10.1.1.1/24        10.1.1.2/24|         |11.1.1.2/24            11.1.1.1/24|          |
++--------+                              +-------+-|                                  +----------+ `)
 	}
 	for curr := graph.List; curr != nil; curr = curr.Next {
 		dumpNode(curr)
@@ -273,6 +307,22 @@ func dumpMacTable(node *network.Node) {
 		t.AppendRow(table.Row{
 			tools.ConvertAddrToStr(curr.MacAddr.Addr[:]),
 			curr.Name})
+	}
+	t.Render()
+}
+
+func dumpRoutingTable(node *network.Node) {
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Dst IpAddr", "Mask", "Direct", "Gateway IpAddr", "Outgoing Intf"})
+	for curr := network.GetNodeRoutingTable(node); curr != nil; curr = curr.Next {
+		t.AppendRow(table.Row{
+            tools.ConvertAddrToStr(curr.DstIpAddr.Addr[:]),
+            curr.DstIpAddr.Mask,
+			curr.IsDirect,
+            tools.ConvertAddrToStr(curr.GatewayIp.Addr[:]),
+			curr.OutIntf,
+		})
 	}
 	t.Render()
 }

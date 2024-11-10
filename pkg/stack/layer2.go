@@ -1,6 +1,8 @@
 package stack
 
 import (
+	"fmt"
+
 	"github.com/gkarthikreddi/tcp/pkg/network"
 	"github.com/gkarthikreddi/tcp/tools"
 )
@@ -78,20 +80,71 @@ func layer2FrameRecieve(node *network.Node, intf *network.Interface, etherFrame 
 	}
 
 	if network.IsIntfIp(intf) {
-		switch etherFrame.EtherType {
-		case ARP_MSG:
-			if arpFrame, err := tools.ByteToStruct(etherFrame.Payload[:], arpHeader{}); err == nil {
-				switch arpFrame.Operation {
-				case ARP_BROAD_REQ:
-					processArpBroadcast(node, intf, etherFrame)
-					break
-				case ARP_RPLY:
-					processArpReply(node, intf, etherFrame)
-					break
-				}
-			}
-		}
+		promotePktToLayer2(node, intf, etherFrame)
 	} else if mode := network.GetIntfL2Mode(intf); mode == "access" || mode == "trunk" {
 		l2switchReceiveFrame(intf, etherFrame)
 	}
+}
+
+func promotePktToLayer2(node *network.Node, intf *network.Interface, etherFrame *ethernetHeader) {
+	switch etherFrame.EtherType {
+	case ARP_MSG:
+		if arpFrame, err := tools.ByteToStruct(etherFrame.Payload[:], arpHeader{}); err == nil {
+			switch arpFrame.Operation {
+			case ARP_BROAD_REQ:
+				processArpBroadcast(node, intf, etherFrame)
+				break
+			case ARP_RPLY:
+				processArpReply(node, intf, etherFrame)
+				break
+			}
+		}
+		break
+	case ETH_IP:
+		promotePktToLayer3(node, intf, etherFrame)
+		break
+	}
+}
+
+func demotePktToLayer2(node *network.Node, nextHopIp *network.Ip, outIntf string, ipFrame *ipHeader, protocol uint16) error {
+	if protocol == ETH_IP {
+		etherFrame := &ethernetHeader{EtherType: ETH_IP}
+		if msg, err := tools.StructToByte(ipFrame); err == nil {
+			copy(etherFrame.Payload[:], msg)
+			return l2ForwardIpPkt(node, nextHopIp, outIntf, etherFrame)
+		} else {
+			return fmt.Errorf("Can't assign IP payload into EtherFrame")
+		}
+	}
+	return nil
+}
+
+func l2ForwardIpPkt(node *network.Node, nextHopIp *network.Ip, outIntf string, etherFrame *ethernetHeader) error {
+	var intf *network.Interface
+	var err error
+	if outIntf != "" {
+		if intf, err = network.GetIntfByIntfName(node, outIntf); err != nil {
+			return err
+		}
+	} else {
+		if isLocalDelivery(node, nextHopIp) {
+			promotePktToLayer3(node, nil, etherFrame)
+			return nil
+		} else {
+			if intf, err = network.NodeGetMatchingSubnet(node, nextHopIp); err != nil {
+				return err
+			}
+		}
+	}
+
+	entry := arpTableLookup(network.GetNodeArpTable(node), nextHopIp)
+	if entry != nil {
+		etherFrame.DstMacAddr = entry.MacAddr.Addr
+		etherFrame.SrcMacAddr = network.GetIntfMac(intf).Addr
+		sendPkt(etherFrame, intf)
+	} else {
+        return fmt.Errorf("no entry in arp")
+    }
+
+	return nil
 }
