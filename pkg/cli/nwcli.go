@@ -3,13 +3,14 @@ package cli
 import "github.com/gkarthikreddi/tcp/tools/cmdparser"
 
 const (
-	SHOW_TOPO    = 1
-	ARP_HANDLER  = 2
-	ARP_TABLE    = 3
-	MAC_TABLE    = 4
-	RT_TABLE     = 5
-	L3_HANDLER   = 6
-	PING_HANDLER = 7
+	SHOW_TOPO      = 1
+	ARP_HANDLER    = 2
+	ARP_TABLE      = 3
+	MAC_TABLE      = 4
+	RT_TABLE       = 5
+	L3_HANDLER     = 6
+	PING_HANDLER   = 7
+	ARPALL_HANDLER = 8
 )
 
 func InitNwCli() {
@@ -146,6 +147,19 @@ func InitNwCli() {
 						"Takes ip addr of node i.e loopback addr")
 					cmdparser.LibcliRegisterParam(&resolveArp, &ipAddr)
 					cmdparser.SetParamCmdCode(&ipAddr, ARP_HANDLER)
+				}
+				{
+					var all cmdparser.Param
+					cmdparser.InitParam(&all,
+						cmdparser.CMD,
+						"all",
+						arpHandler,
+						nil,
+						cmdparser.INVALID,
+						"",
+						"Resolves arp on all interfaces")
+					cmdparser.LibcliRegisterParam(&resolveArp, &all)
+					cmdparser.SetParamCmdCode(&all, ARPALL_HANDLER)
 				}
 			}
 

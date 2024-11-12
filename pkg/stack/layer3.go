@@ -38,7 +38,7 @@ func routingTableLookup(routingTable *network.RoutEntry, dstIp *network.Ip) *net
 	var lpm uint8 // Longest Prefix Match
 	lpm = 0
 	for entry := routingTable; entry != nil; entry = entry.Next {
-        dstIp.Mask = entry.DstIpAddr.Mask
+		dstIp.Mask = entry.DstIpAddr.Mask
 		ip := network.ApplyMask(dstIp)
 		if ip == entry.DstIpAddr.Addr && entry.DstIpAddr.Mask > lpm {
 			lpm = entry.DstIpAddr.Mask
@@ -108,7 +108,7 @@ func l3recieveFrame(node *network.Node, intf *network.Interface, ipFrame *ipHead
 			if isLocalDelivery(node, ip) {
 				switch ipFrame.Protocol {
 				case ICMP_PRO:
-					fmt.Println("Ip Addr: " + tools.ConvertAddrToStr(ipFrame.DstIpAddr[:]) + " ping successful")
+					fmt.Println("Ip Addr: " + Yellow + tools.ConvertAddrToStr(ipFrame.DstIpAddr[:]) + Reset + " ping " + Green + "successful" + Reset)
 					break
 				}
 			} else {

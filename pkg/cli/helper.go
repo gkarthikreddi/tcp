@@ -163,7 +163,41 @@ func buildLinear3NodeTopo() *network.Graph {
 	return graph
 }
 
-var graph = buildLinear3NodeTopo()
+func buildSquareTopo() *network.Graph {
+	topo := network.CreateNewGraph("Square Topo")
+	R1 := network.CreateGraphNode(topo, "R1")
+	R2 := network.CreateGraphNode(topo, "R2")
+	R3 := network.CreateGraphNode(topo, "R3")
+	R4 := network.CreateGraphNode(topo, "R4")
+
+	network.InsertLinkBetweenNodes(R1, R2, "eth0/0", "eth0/1", 1)
+	network.InsertLinkBetweenNodes(R2, R3, "eth0/2", "eth0/3", 1)
+	network.InsertLinkBetweenNodes(R3, R4, "eth0/4", "eth0/5", 1)
+	network.InsertLinkBetweenNodes(R4, R1, "eth0/6", "eth0/7", 1)
+
+	network.NodeSetLbAddr(R1, "122.1.1.1")
+	network.NodeSetIntfIpAddr(R1, "eth0/0", "10.1.1.1", 24)
+	network.NodeSetIntfIpAddr(R1, "eth0/7", "40.1.1.2", 24)
+
+	network.NodeSetLbAddr(R2, "122.1.1.2")
+	network.NodeSetIntfIpAddr(R2, "eth0/1", "10.1.1.2", 24)
+	network.NodeSetIntfIpAddr(R2, "eth0/2", "20.1.1.1", 24)
+
+	network.NodeSetLbAddr(R3, "122.1.1.3")
+	network.NodeSetIntfIpAddr(R3, "eth0/3", "20.1.1.2", 24)
+	network.NodeSetIntfIpAddr(R3, "eth0/4", "30.1.1.1", 24)
+
+	network.NodeSetLbAddr(R4, "122.1.1.4")
+	network.NodeSetIntfIpAddr(R4, "eth0/5", "30.1.1.2", 24)
+	network.NodeSetIntfIpAddr(R4, "eth0/6", "40.1.1.1", 24)
+
+	stack.InitNetworkListening(topo)
+	stack.InitRoutingTable(topo)
+
+	return topo
+}
+
+var graph = buildSquareTopo()
 
 func dumpGraph(graph *network.Graph) {
 	fmt.Println("Name: " + Cyan + graph.Name + Reset)
@@ -253,6 +287,28 @@ func dumpGraph(graph *network.Graph) {
 |122.1.1.1+-----------------------------+122.1.1.2|+----------------------------------+         |
 |        |10.1.1.1/24        10.1.1.2/24|         |11.1.1.2/24            11.1.1.1/24|          |
 +--------+                              +-------+-|                                  +----------+ `)
+	} else if graph.Name == "Square Topo" {
+		fmt.Println(`
+  +-----------+                      +--------+                            +--------+
+  |           |eth0/0     10.1.1.2/24|        | eth0/2               eth0/3|        |
+  | R1        +----------------------|  R2    +----------------------------+   R3   |
+  |122.1.1.1  |10.1.1.1/24     eth0/1|122.1.1.2|  20.1.1.1/24   20.1.1.2/24| 122.1.1.3|
+  +---+--+----+                      |        |                            +-       +
+         |eth0/7                     +--------+                            +----+---+
+         | 40.1.1.2/24                                                          | eth0/4   
+         |                                                                      |30.1.1.1/24
+         |                                                                      |
+         |                                                                      |
+         |                                                                      |
+         |                                                                      |
+         |                                                                      |
+         |                          +-----------+                               |
+         |                          |           |                               |
+         |                  eth0/6  |  R4       |                               |
+         +--------------------------+ 122.1.1.4 |                               |
+                         40.1.1.1/24|           +-------------------------------+
+                                    |           |eth0/5
+                                    +-----------+30.1.1.2/24 `)
 	}
 	for curr := graph.List; curr != nil; curr = curr.Next {
 		dumpNode(curr)
@@ -316,11 +372,15 @@ func dumpRoutingTable(node *network.Node) {
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"Dst IpAddr", "Mask", "Direct", "Gateway IpAddr", "Outgoing Intf"})
 	for curr := network.GetNodeRoutingTable(node); curr != nil; curr = curr.Next {
+		addr := "NA"
+		if curr.GatewayIp != nil {
+			addr = tools.ConvertAddrToStr(curr.GatewayIp.Addr[:])
+		}
 		t.AppendRow(table.Row{
-            tools.ConvertAddrToStr(curr.DstIpAddr.Addr[:]),
-            curr.DstIpAddr.Mask,
+			tools.ConvertAddrToStr(curr.DstIpAddr.Addr[:]),
+			curr.DstIpAddr.Mask,
 			curr.IsDirect,
-            tools.ConvertAddrToStr(curr.GatewayIp.Addr[:]),
+			addr,
 			curr.OutIntf,
 		})
 	}

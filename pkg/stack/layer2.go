@@ -2,6 +2,7 @@ package stack
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gkarthikreddi/tcp/pkg/network"
 	"github.com/gkarthikreddi/tcp/tools"
@@ -122,7 +123,7 @@ func demotePktToLayer2(node *network.Node, nextHopIp *network.Ip, outIntf string
 func l2ForwardIpPkt(node *network.Node, nextHopIp *network.Ip, outIntf string, etherFrame *ethernetHeader) error {
 	var intf *network.Interface
 	var err error
-	if outIntf != "" {
+	if outIntf != "NA" {
 		if intf, err = network.GetIntfByIntfName(node, outIntf); err != nil {
 			return err
 		}
@@ -138,13 +139,22 @@ func l2ForwardIpPkt(node *network.Node, nextHopIp *network.Ip, outIntf string, e
 	}
 
 	entry := arpTableLookup(network.GetNodeArpTable(node), nextHopIp)
-	if entry != nil {
-		etherFrame.DstMacAddr = entry.MacAddr.Addr
-		etherFrame.SrcMacAddr = network.GetIntfMac(intf).Addr
-		sendPkt(etherFrame, intf)
-	} else {
-        return fmt.Errorf("no entry in arp")
-    }
+	if entry == nil {
+		go SendArpBroadcast(node, intf, nextHopIp)
+		time.Sleep(time.Millisecond * 100)
+		entry = arpTableLookup(network.GetNodeArpTable(node), nextHopIp)
+		if entry == nil {
+			fmt.Println("quit")
+			return nil
+		}
+	}
+	// if entry != nil {
+	etherFrame.DstMacAddr = entry.MacAddr.Addr
+	etherFrame.SrcMacAddr = network.GetIntfMac(intf).Addr
+	sendPkt(etherFrame, intf)
+	// } else {
+	//        return fmt.Errorf("no entry in arp")
+	//    }
 
 	return nil
 }

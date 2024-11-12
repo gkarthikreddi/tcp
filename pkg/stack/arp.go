@@ -125,12 +125,46 @@ func SendArpBroadcast(node *network.Node, outIntf *network.Interface, ip *networ
 	return nil
 }
 
+func SendArpAll(node *network.Node) error {
+	var err error
+	ip := network.Ip{Addr: [4]byte{255, 255, 255, 255}}
+
+	for _, intf := range node.Intf {
+        if intf == nil {
+            break
+        }
+		etherFrame := ethernetHeader{SrcMacAddr: network.GetIntfMac(intf).Addr,
+			EtherType: ARP_MSG,
+			Fcs:       0, // You shouldn't do this!
+		}
+
+		arpFrame := arpHeader{HardwareType: 1,
+			ProtocolType:    0x0800,
+			HardwareLength:  6,
+			ProtocolLength:  4,
+			Operation:       ARP_BROAD_REQ,
+			SrcMacAddr:      network.GetIntfMac(intf).Addr,
+			SrcProtocolAddr: network.GetIntfIp(intf).Addr,
+			DstProtocolAddr: ip.Addr}
+		fillBroadcastAddr(&etherFrame.DstMacAddr)
+
+		if err = assignPayload(&etherFrame, &arpFrame); err != nil {
+			return err
+		}
+
+		if err = sendPkt(&etherFrame, intf); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func processArpBroadcast(node *network.Node, localIntf *network.Interface, etherFrame *ethernetHeader) error {
-	fmt.Printf("ARP braodcast msg recieved on interface %s of node %s\n", localIntf.Name, node.Name)
+	fmt.Println(Purple + "ARP braodcast msg recieved on interface " + Yellow + localIntf.Name + Purple + " of node " + Yellow + node.Name + Reset)
 
 	if arpFrame, err := tools.ByteToStruct(etherFrame.Payload[:], arpHeader{}); err == nil {
 		ip := arpFrame.DstProtocolAddr
-		if ip == network.GetIntfIp(localIntf).Addr {
+		if ip == network.GetIntfIp(localIntf).Addr || ip == [4]byte{255, 255, 255, 255} {
 			sendArpReply(etherFrame, localIntf)
 		}
 	} else {
@@ -168,7 +202,7 @@ func sendArpReply(etherFrame *ethernetHeader, outIntf *network.Interface) error 
 }
 
 func processArpReply(node *network.Node, localIntf *network.Interface, etherFrame *ethernetHeader) error {
-	fmt.Printf("ARP reply msg recieved on interface %s of node %s\n", localIntf.Name, node.Name)
+	fmt.Println(Purple + "ARP reply msg recieved on interface " + Yellow + localIntf.Name + Purple + " of node " + Yellow + node.Name + Reset)
 
 	if arpFrame, err := tools.ByteToStruct(etherFrame.Payload[:], arpHeader{}); err == nil {
 		updateArpTableFromArpReply(node, arpFrame, localIntf)
